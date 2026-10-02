@@ -43,6 +43,17 @@ export default function ExperienceCanvas() {
   const [initial] = useState(() => perfConfig[getExperience().perf]);
   const htmlRoot = useRef<HTMLDivElement>(null);
 
+  // Shader compilation + model upload make the first seconds jumpy on ANY
+  // device. Judge the frame rate only after things have settled.
+  const bornAt = useRef(0);
+  useEffect(() => {
+    bornAt.current = performance.now();
+  }, []);
+  const stepDown = () => {
+    if (performance.now() - bornAt.current < 8000) return;
+    degradePerf();
+  };
+
   // expose the live tier (CSS / tests)
   useEffect(() => {
     document.documentElement.dataset.perf = perf;
@@ -76,8 +87,8 @@ export default function ExperienceCanvas() {
             }}
           >
             <PerformanceMonitor
-              onDecline={degradePerf}
-              onFallback={degradePerf}
+              onDecline={stepDown}
+              onFallback={stepDown}
               flipflops={2}
             />
             <HtmlPortalContext.Provider value={htmlRoot}>
