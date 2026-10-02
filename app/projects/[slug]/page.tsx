@@ -23,7 +23,12 @@ export async function generateMetadata({
     title: project.title,
     // build-time metadata is Turkish; the client swaps it with the language
     description: loc(project.description, "tr"),
-    openGraph: { title: project.title, description: loc(project.description, "tr") },
+    alternates: { canonical: `/projects/${project.id}` },
+    openGraph: {
+      title: project.title,
+      description: loc(project.description, "tr"),
+      url: `/projects/${project.id}`,
+    },
   };
 }
 

@@ -179,8 +179,8 @@ Add `{ id, name, category }` to `technologies` in `data/skills.ts`; add pairs to
 
 ### Editing profile info
 
-Edit `data/site.ts`. Set `NEXT_PUBLIC_SITE_URL` (see `.env.example`) for correct
-Open Graph URLs.
+Edit `data/site.ts`. `site.url` (the production origin, `https://erdemyigitsoy.com`)
+drives canonical, Open Graph, sitemap and robots URLs.
 
 ## 3D assets
 
@@ -283,7 +283,7 @@ Fonts: Space Grotesk, JetBrains Mono, Instrument Serif (SIL OFL) via `next/font`
 ## Deployment (Vercel)
 
 1. Push the repository and import it in Vercel — the framework preset is detected.
-2. Add `NEXT_PUBLIC_SITE_URL` (your production origin) as an environment variable.
+2. No environment variables are needed; the production origin lives in `data/site.ts`.
 3. Deploy. `npm run build` prerenders `/`, every `/projects/[slug]`, the OG image,
    `robots.txt` and `sitemap.xml`.
 

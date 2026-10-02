@@ -13,7 +13,8 @@ export const site = {
   linkedin: "https://www.linkedin.com/in/erdem-yi%C4%9Fitsoy-6817472ba/",
   linkedinLabel: "linkedin.com/in/erdem-yiğitsoy",
   year: 2026,
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  /** Production origin: canonical, Open Graph, sitemap and robots all derive from it. */
+  url: "https://erdemyigitsoy.com",
 } as const;
 
 /** Navigation targets (labels: `navigation.*` in the dictionaries). */
