@@ -54,7 +54,7 @@ export default function Header({ standalone = false }: { standalone?: boolean })
         <Link
           href="/"
           onClick={home}
-          className="pointer-events-auto label !text-bone link-underline"
+          className="pointer-events-auto label !text-bone link-underline -my-3 py-3"
           aria-label={`${site.name} — ${dict.navigation.home}`}
         >
           {site.nameUpper}
@@ -93,7 +93,7 @@ export default function Header({ standalone = false }: { standalone?: boolean })
 
         <button
           type="button"
-          className="pointer-events-auto label !text-bone md:hidden"
+          className="pointer-events-auto label -m-3 flex min-h-[48px] min-w-[48px] items-center justify-end !text-bone p-3 md:hidden"
           aria-expanded={menuOpen}
           aria-controls="mobile-menu"
           onClick={() => setExperience({ menuOpen: !menuOpen })}

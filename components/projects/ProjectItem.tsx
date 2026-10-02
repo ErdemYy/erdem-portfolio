@@ -3,6 +3,8 @@
 import Chapter from "@/components/sections/Chapter";
 import { projects } from "@/data/projects";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useExperience } from "@/lib/experience";
+import { MobileActions } from "./ProjectMeta";
 import { pad } from "@/lib/utils";
 import type { Project } from "@/types/portfolio";
 
@@ -24,6 +26,7 @@ export default function ProjectItem({
   total: number;
 }) {
   const { dict, project: localize } = useLanguage();
+  const narrow = useExperience((st) => st.narrow);
   const lp = localize(project);
   const number = projects.findIndex((p) => p.id === project.id) + 1;
   return (
@@ -45,6 +48,7 @@ export default function ProjectItem({
             {pad(index + 1)}/{pad(total)}
           </span>
         </div>
+        {narrow && <MobileActions project={project} />}
         {/* readable by assistive tech / crawlers; the visual lives on the monitor */}
         <div className="sr-only">
           <h3>{project.title}</h3>

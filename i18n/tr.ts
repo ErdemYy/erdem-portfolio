@@ -47,6 +47,7 @@ export const tr: Dictionary = {
     figureAlt: "şekil",
     topologyAlt: "topoloji",
     placeholder: "EKRAN GÖRÜNTÜSÜ YER TUTUCU",
+    fallbackNote: "İnteraktif 3D görünüm bu cihazda kullanılamıyor — hafif sürüm gösteriliyor.",
   },
 
   progress: {

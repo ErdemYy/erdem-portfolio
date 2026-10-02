@@ -207,6 +207,43 @@ FBX / OBJ are not loaded directly. Convert first:
 `npx fbx2gltf -i model.fbx -o model.glb` or `npx obj2gltf -i model.obj -o model.glb`,
 or import into Blender → *File → Export → glTF 2.0 (.glb)*.
 
+## Mobile & performance tiers
+
+Phones get their own experience, not a shrunken desktop.
+
+**Breakpoints** — mobile-small `<380` (`max-xs:`) · mobile `<768` · tablet `768–1023` (`md:`) ·
+desktop `1024–1535` (`lg:`) · large `≥1536` (`2xl:`). JS mirrors them as `bp` in the store;
+`narrow` (<900) selects the compact screens, `landscapeShort` (height ≤520 landscape) switches
+chapters to content-driven height.
+
+**Performance tiers** (`lib/performance.ts` — every GPU/CPU cost is a field of `perfConfig`):
+
+| | HIGH | MEDIUM | LOW |
+| --- | --- | --- | --- |
+| who | desktop | tablets, modern phones | weak phones, software GL, data-saver |
+| DPR cap | 2 | 1.25 | 1 |
+| post-processing | bloom + vignette + grain + SMAA | half bloom (low-res) + vignette | none (renderer tone-maps) |
+| particles | 650 | 240 | 0 |
+| lights | key · rim · accent · hemi · ambient | same, no pulses | key · hemi · ambient (brighter) |
+| env map | 256 | 128 | 64 |
+| models | all, streamed behind the hero | only stations around the current chapter | same, 1 chapter look-ahead |
+
+Detection is feature-based (`navigator.deviceMemory`, `hardwareConcurrency`, `pointer: coarse`,
+viewport, Save-Data / effective connection type, software-renderer sniff via
+`WEBGL_debug_renderer_info`) and every signal is optional. `?perf=low|medium|high` forces a tier
+(remembered). At runtime `PerformanceMonitor` steps the tier **down** when the frame rate drops
+(never back up).
+
+**Streaming** — on MEDIUM/LOW only the hero desk loads at first paint (1 GLB instead of 5).
+Phone, rack and laptop stations mount one chapter before they are needed and are unmounted (GPU
+buffers disposed) after the camera has left them.
+
+**Phone composition** — poses carry an optional `m` (portrait) override: a single-focus shot per
+chapter instead of the wide desk. Chapters are ~62% as long on phones (never under 100svh).
+Project buttons sit in a thumb-sized bar under the scene (the project itself stays on the 3D
+monitor). **No WebGL** (or a canvas that fails to create) → a lightweight editorial page with the
+same projects, never a black screen.
+
 ## Performance
 
 * Models: −90% bytes (meshopt + WebP ≤1024px); hero streams first, the rest loads behind it.

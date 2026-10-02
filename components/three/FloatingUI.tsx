@@ -6,7 +6,8 @@ import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
 import UIPane from "./UIPane";
 import { poseWeight, setGroupOpacity } from "@/lib/three-utils";
-import { getExperience } from "@/lib/experience";
+import { useExperience } from "@/lib/experience";
+import { perfConfig } from "@/lib/performance";
 
 const panes = [
   { p: [-3.6, 4.4, -1.4], r: [0, 0.32, 0], w: 1.9, h: 1.25, rows: 4 },
@@ -19,7 +20,9 @@ const panes = [
 /** WEB: floating UI components orbiting the desk. */
 export default function FloatingUI() {
   const group = useRef<Group>(null);
-  const reduced = getExperience().reducedMotion;
+  const reducedMotion = useExperience((st) => st.reducedMotion);
+  const perf = useExperience((st) => st.perf);
+  const still = reducedMotion || !perfConfig[perf].floatPanes;
 
   useFrame(() => {
     if (group.current) setGroupOpacity(group.current, poseWeight("web"));
@@ -30,9 +33,9 @@ export default function FloatingUI() {
       {panes.map((pane, i) => (
         <Float
           key={i}
-          speed={reduced ? 0 : 1.1 + i * 0.12}
-          floatIntensity={reduced ? 0 : 0.7}
-          rotationIntensity={reduced ? 0 : 0.18}
+          speed={still ? 0 : 1.1 + i * 0.12}
+          floatIntensity={still ? 0 : 0.7}
+          rotationIntensity={still ? 0 : 0.18}
           position={[...pane.p]}
         >
           <UIPane

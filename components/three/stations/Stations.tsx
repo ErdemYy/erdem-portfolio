@@ -23,6 +23,7 @@ import {
 import { getExperience, useExperience } from "@/lib/experience";
 import { useLanguage } from "@/hooks/useLanguage";
 import { screenConfig } from "@/lib/screens";
+import { perfConfig } from "@/lib/performance";
 import { poseWeight as pw } from "@/lib/three-utils";
 import { poseWeight, setGroupOpacity } from "@/lib/three-utils";
 import { clamp, smootherstep } from "@/lib/utils";
@@ -104,6 +105,7 @@ const flowEdges: [number, number][] = [
 
 export function BackendStation() {
   const { dict } = useLanguage();
+  const cfg = perfConfig[useExperience((st) => st.perf)];
   const flowLabels = dict.build.flow;
   const labels = useRef<Group>(null);
 
@@ -129,7 +131,7 @@ export function BackendStation() {
         fallbackSize={3}
       />
       <group ref={flow}>
-        <NetworkLines nodes={withRack} edges={edges} color="#4f8cff" nodeSize={0.1} />
+        <NetworkLines nodes={withRack} edges={edges} color="#4f8cff" nodeSize={0.1} pulses={cfg.pulses} />
       </group>
       <group ref={labels}>
         {flowLabels.slice(0, 4).map((label, i) => (
@@ -194,6 +196,7 @@ const systemsEdges: [number, number][] = [
 
 export function SystemsStation() {
   const group = useRef<Group>(null);
+  const cfg = perfConfig[useExperience((st) => st.perf)];
 
   useFrame(() => {
     // the mesh draws itself in as the systems chapter takes over
@@ -220,6 +223,7 @@ export function SystemsStation() {
           edges={systemsEdges}
           color="#4f8cff"
           nodeSize={0.1}
+          pulses={cfg.pulses}
         />
       </group>
     </group>
@@ -279,7 +283,7 @@ export function PcStation() {
 /* ------------------------------------------------------------------ */
 /*  CONSTELLATION — software engineering at the centre                 */
 /* ------------------------------------------------------------------ */
-function buildConstellation() {
+function buildConstellation(maxTechs: number, links: boolean) {
   const nodes: V3[] = [[0, 0, 0]];
   const edges: [number, number][] = [];
   const index = new Map<string, number>();
@@ -302,7 +306,7 @@ function buildConstellation() {
     emphasis[cIdx] = 2;
     labels.push({ id: cat.key, text: "", pos: cpos, kind: "category" });
 
-    const techs = technologies.filter((t) => t.category === cat.key);
+    const techs = technologies.filter((t) => t.category === cat.key).slice(0, maxTechs);
     techs.forEach((t, ti) => {
       const a = (ti / techs.length) * Math.PI * 2 + ci;
       const spread = 1.7;
@@ -318,7 +322,7 @@ function buildConstellation() {
     });
   });
 
-  techRelations.forEach(([a, b]) => {
+  (links ? techRelations : []).forEach(([a, b]) => {
     const ia = index.get(a);
     const ib = index.get(b);
     if (ia !== undefined && ib !== undefined) edges.push([ia, ib]);
@@ -327,18 +331,25 @@ function buildConstellation() {
   return { nodes, edges, labels, emphasis };
 }
 
-export function Constellation({ pulses }: { pulses: boolean }) {
+export function Constellation() {
   const { dict } = useLanguage();
+  const perf = useExperience((st) => st.perf);
+  const narrow = useExperience((st) => st.narrow);
+  const cfg = perfConfig[perf];
   const group = useRef<Group>(null);
   const spin = useRef<Group>(null);
-  const data = useMemo(() => buildConstellation(), []);
+  const data = useMemo(
+    () => buildConstellation(cfg.constellationTechs, cfg.constellationLinks),
+    [cfg.constellationTechs, cfg.constellationLinks],
+  );
   useFrame((_, dt) => {
     const g = group.current;
     const s = spin.current;
     if (!g || !s) return;
     const w = poseWeight("stack");
     const k = smootherstep(clamp(w, 0, 1));
-    g.scale.setScalar(0.35 + 0.65 * k);
+    // smaller on phones so the whole cluster fits a portrait frame
+    g.scale.setScalar((0.35 + 0.65 * k) * (narrow ? 0.66 : 1));
     setGroupOpacity(g, 0.05 + 0.95 * k);
     if (!getExperience().reducedMotion) s.rotation.y += Math.min(dt, 0.05) * 0.05;
     document.documentElement.style.setProperty("--stack-vis", k.toFixed(2));
@@ -354,7 +365,7 @@ export function Constellation({ pulses }: { pulses: boolean }) {
             color="#c9d3e6"
             nodeSize={0.075}
             emphasis={data.emphasis}
-            pulses={pulses}
+            pulses={cfg.pulses}
             opacity={0.35}
           />
           {data.labels.map((l) => (

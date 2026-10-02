@@ -12,6 +12,7 @@ import {
   type Waypoint,
 } from "@/lib/choreography";
 import { clamp } from "@/lib/utils";
+import { degradePerf } from "@/lib/performance";
 
 type Eval = {
   pos: Vector3;
@@ -56,24 +57,31 @@ function evaluate(
   aspect: number,
   lens: number,
 ) {
-  out.target.set(...w.target);
-  off.set(w.pos[0] - w.target[0], w.pos[1] - w.target[1], w.pos[2] - w.target[2]);
+  // portrait phones get their own single-focus composition where one exists
+  const pm = portrait ? w.m : undefined;
+  const src = pm ? { ...w, ...pm } : w;
+  const tight = !!pm?.tight;
+  const fitK = tight ? 1 : fit;
+  const lensK = tight ? 1 : lens;
+
+  out.target.set(...src.target);
+  off.set(src.pos[0] - src.target[0], src.pos[1] - src.target[1], src.pos[2] - src.target[2]);
   const t = p - 0.5;
-  const orbit = (w.orbit ?? 0) * t * motion;
+  const orbit = (src.orbit ?? 0) * t * motion;
   if (orbit) off.applyAxisAngle(up.set(0, 1, 0), orbit);
-  const dolly = 1 + (w.dolly ?? 0) * t * motion;
-  off.multiplyScalar(dolly * fit);
+  const dolly = 1 + (src.dolly ?? 0) * t * motion;
+  off.multiplyScalar(dolly * fitK);
   out.pos.copy(out.target).add(off);
   // portrait: widen the lens (cheaper than dollying through other stations);
   // poses that look at a screen widen until the whole glass fits across.
   const widen = (f: number) =>
-    MathUtils.radToDeg(2 * Math.atan(Math.tan(MathUtils.degToRad(f) / 2) * lens));
-  out.fov = lens > 1.001 ? Math.min(75, widen(w.fov)) : w.fov;
-  if (portrait && w.screenWidth) {
+    MathUtils.radToDeg(2 * Math.atan(Math.tan(MathUtils.degToRad(f) / 2) * lensK));
+  out.fov = lensK > 1.001 ? Math.min(75, widen(src.fov)) : src.fov;
+  if (portrait && src.screenWidth) {
     const need = MathUtils.radToDeg(
-      2 * Math.atan((w.screenWidth * 1.12) / (2 * off.length() * aspect)),
+      2 * Math.atan((src.screenWidth * 1.12) / (2 * off.length() * aspect)),
     );
-    out.fov = MathUtils.clamp(need, w.fov, 82);
+    out.fov = MathUtils.clamp(need, src.fov, 82);
   }
   const f = portrait ? (w.frameMobile ?? [0, 0]) : (w.frame ?? [0, 0]);
   out.fx = f[0];
@@ -83,7 +91,12 @@ function evaluate(
 const damp = MathUtils.damp;
 
 /* Dev-only inspection hook (tree-shaken in production builds). */
-type DevHook = { scene?: unknown; gl?: unknown; frame: typeof frame };
+type DevHook = {
+  scene?: unknown;
+  gl?: unknown;
+  frame: typeof frame;
+  degradePerf: () => void;
+};
 const dev: DevHook | null =
   process.env.NODE_ENV !== "production" && typeof window !== "undefined"
     ? ((window as unknown as { __exp: unknown }).__exp = {
@@ -91,6 +104,7 @@ const dev: DevHook | null =
         frame,
         waypoints,
         lightProfiles,
+        degradePerf,
       } as DevHook)
     : null;
 

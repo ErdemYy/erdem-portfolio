@@ -16,7 +16,14 @@ export default function SkillsSection() {
   const { dict } = useLanguage();
   const s = dict.skills;
   return (
-    <Chapter id="stack" group="stack" vh={190} side="left" label={s.label}>
+    <Chapter
+      id="stack"
+      group="stack"
+      vh={190}
+      side="left"
+      label={s.label}
+      innerClassName="max-md:items-end max-md:pb-8"
+    >
       <div className="w-full px-5 md:px-10 lg:px-16">
         <div className="max-w-[34rem]">
           <SectionLabel index="05" className="mb-8">

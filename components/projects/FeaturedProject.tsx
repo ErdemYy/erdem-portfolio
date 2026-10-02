@@ -3,6 +3,8 @@
 import Chapter from "@/components/sections/Chapter";
 import { featuredProject } from "@/data/projects";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useExperience } from "@/lib/experience";
+import { MobileActions } from "./ProjectMeta";
 
 /**
  * FEATURED WORK. The camera closes in on the desk monitor, which boots into
@@ -12,6 +14,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 export default function FeaturedProject() {
   const { dict, project } = useLanguage();
   const p = project(featuredProject);
+  const narrow = useExperience((st) => st.narrow);
   return (
     <Chapter
       id="featured"
@@ -28,6 +31,7 @@ export default function FeaturedProject() {
           <span className="h-px w-8 bg-white/20" />
           <span>{dict.work.featured}</span>
         </div>
+        {narrow && <MobileActions project={featuredProject} />}
         <div className="sr-only">
           <h3>{p.title}</h3>
           <p>{p.longDescription ?? p.description}</p>

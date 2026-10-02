@@ -9,7 +9,8 @@ import ProjectItem from "./ProjectItem";
 import FeaturedProject from "./FeaturedProject";
 import { featuredProject, projects } from "@/data/projects";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
-import { getExperience, setExperience } from "@/lib/experience";
+import { getExperience, setExperience, useExperience } from "@/lib/experience";
+import FallbackProjects from "./FallbackProjects";
 import { useLanguage } from "@/hooks/useLanguage";
 import { plain, rich } from "@/i18n/rich";
 
@@ -21,6 +22,7 @@ import { plain, rich } from "@/i18n/rich";
 export default function ProjectShowcase() {
   const { dict } = useLanguage();
   const w = dict.work;
+  const webgl = useExperience((st) => st.webgl);
   const [filter, setFilter] = useState("all");
   const list = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
@@ -97,9 +99,10 @@ export default function ProjectShowcase() {
         </div>
       </Chapter>
 
-      <FeaturedProject />
+      {!webgl && <FallbackProjects items={[featuredProject, ...visible]} />}
+      {webgl && <FeaturedProject />}
 
-      <div ref={list}>
+      <div ref={list} hidden={!webgl}>
         {visible.length === 0 ? (
           <Chapter id="project-empty" pose="projectA" group="work" vh={90} side="left">
             <div className="w-full px-5 md:px-10 lg:px-16">

@@ -1,14 +1,17 @@
 "use client";
 
 import { Environment, Lightformer } from "@react-three/drei";
+import { perfConfig } from "@/lib/performance";
+import { useExperience } from "@/lib/experience";
 
 /**
  * Procedural studio reflections — no HDR download needed.
  * Baked once (frames = 1); strength is driven by scene.environmentIntensity.
  */
 export default function WorldEnvironment() {
+  const resolution = perfConfig[useExperience((s) => s.perf)].envResolution;
   return (
-    <Environment resolution={256} frames={1} background={false}>
+    <Environment resolution={resolution} frames={1} background={false}>
       {/* big soft top box */}
       <Lightformer form="rect" intensity={2.4} color="#fff3e6" position={[0, 9, 2]} rotation-x={Math.PI / 2} scale={[16, 10, 1]} />
       {/* side strips */}

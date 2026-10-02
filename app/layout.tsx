@@ -30,6 +30,7 @@ const serif = Instrument_Serif({
   weight: "400",
   style: ["normal", "italic"],
   display: "swap",
+  preload: false, // only used for accent words — never block first paint on it
 });
 
 // optional audio: only files that really exist in /public/audio are offered

@@ -50,6 +50,7 @@ export const en = {
     figureAlt: "figure",
     topologyAlt: "topology",
     placeholder: "SCREENSHOT PLACEHOLDER",
+    fallbackNote: "The interactive 3D view is unavailable on this device — showing the lightweight version.",
   },
 
   progress: {

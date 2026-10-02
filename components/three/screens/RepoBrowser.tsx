@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
+import type { KeyboardEvent } from "react";
 import ProjectVisual from "@/components/projects/ProjectVisual";
 import { projects } from "@/data/projects";
 import { site } from "@/data/site";
 import { caseStudyClick } from "@/lib/transition";
-import { useExperience } from "@/lib/experience";
+import { getExperience, setExperience, useExperience } from "@/lib/experience";
 import { useLanguage } from "@/hooks/useLanguage";
 import { cn, pad, realLink } from "@/lib/utils";
 
@@ -22,14 +22,16 @@ const statusDot: Record<string, string> = {
  * depend on router context — navigation goes through routeTransition.
  */
 export default function RepoBrowser() {
-  const [sel, setSel] = useState(0);
+  // selection is shared with the phone action bar (GithubSection)
+  const sel = useExperience((st) => st.repoIndex);
+  const setSel = (n: number) => setExperience({ repoIndex: n });
   const compact = useExperience((st) => st.narrow);
   const { dict, project: localize } = useLanguage();
   const p = localize(projects[sel]);
   const github = realLink(p.github);
   const total = projects.length;
 
-  const step = (d: number) => setSel((i) => (i + d + total) % total);
+  const step = (d: number) => setSel((getExperience().repoIndex + d + total) % total);
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown" || e.key === "ArrowRight") {

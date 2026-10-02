@@ -12,6 +12,7 @@ import MaskLines from "@/components/ui/MaskLines";
 export default function HeroSection() {
   const introDone = useExperience((s) => s.introDone);
   const { dict } = useLanguage();
+  const webgl = useExperience((st) => st.webgl);
   const root = useRef<HTMLDivElement>(null);
 
   // hide until intro (client-side so the SSR markup stays readable without JS)
@@ -80,6 +81,11 @@ export default function HeroSection() {
           </div>
         </div>
 
+        {!webgl && (
+          <p data-fade className="label max-w-md !text-bone/70">
+            {dict.ui.fallbackNote}
+          </p>
+        )}
         <div
           data-fade
           className="flex items-center gap-4 self-end md:absolute md:bottom-14 md:right-16 md:self-auto"

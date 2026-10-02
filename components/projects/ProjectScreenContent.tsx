@@ -92,6 +92,8 @@ export default function ProjectScreenContent({ project: raw, number, position, t
           {dict.status[project.status]}
         </div>
 
+        {/* phones: the actions are a thumb-sized bar under the scene (MobileActions) */}
+        {!compact && (
         <div className="mt-auto flex flex-wrap gap-2.5">
           <a
             href={`/projects/${project.id}`}
@@ -128,6 +130,7 @@ export default function ProjectScreenContent({ project: raw, number, position, t
             </a>
           )}
         </div>
+        )}
       </div>
 
       {!compact && (

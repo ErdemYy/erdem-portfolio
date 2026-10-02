@@ -12,8 +12,10 @@ type Props = {
   pose?: string;
   /** Progress-indicator group. */
   group: string;
-  /** Scroll length in viewport heights. */
+  /** Scroll length in viewport heights (tablet / desktop). */
   vh?: number;
+  /** Phones get a shorter chapter — defaults to ~62% of `vh`, never below 100 (the pinned stage is 100svh). */
+  mobileVh?: number;
   /** Which side the copy sits on — decides the scrim. */
   side?: "left" | "right" | "none";
   /** Hero drives its own entrance. */
@@ -36,6 +38,7 @@ export default function Chapter({
   pose,
   group,
   vh = 130,
+  mobileVh,
   side = "left",
   autoReveal = true,
   label,
@@ -53,8 +56,9 @@ export default function Chapter({
     if (!el || !content) return;
     const reduced = getExperience().reducedMotion;
     const ctx = gsap.context(() => {
-      /* scrubbed in / hold / out */
+      /* scrubbed in / hold / out (only meaningful alongside the 3D scene) */
       const travel = reduced ? 0 : 36;
+      if (getExperience().webgl)
       gsap
         .timeline({
           defaults: { ease: "none" },
@@ -104,13 +108,17 @@ export default function Chapter({
       data-pose={pose ?? id}
       data-group={group}
       aria-label={label}
-      className={cn("pointer-events-none relative overflow-x-clip", className)}
-      style={{ height: `${vh}svh`, ...style }}
+      className={cn("chapter pointer-events-none relative overflow-x-clip", className)}
+      style={{
+        "--ch-d": `${vh}svh`,
+        "--ch-m": `${mobileVh ?? Math.max(100, Math.round(vh * 0.62))}svh`,
+        ...style,
+      } as CSSProperties}
     >
       <div
         ref={inner}
         className={cn(
-          "sticky top-0 flex h-[100svh] w-full items-center",
+          "chapter-inner sticky top-0 flex h-[100svh] w-full items-center",
           side === "left" && "scrim-left",
           side === "right" && "scrim-right",
           innerClassName,

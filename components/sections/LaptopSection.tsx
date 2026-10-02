@@ -16,7 +16,14 @@ export default function LaptopSection() {
   const l = dict.laptop;
 
   return (
-    <Chapter id="laptop" group="work" vh={330} side="left" label={l.label}>
+    <Chapter
+      id="laptop"
+      group="work"
+      vh={330}
+      side="left"
+      label={l.label}
+      innerClassName="max-md:items-end max-md:pb-8"
+    >
       <div className="w-full px-5 md:px-10 lg:px-16">
         <div className="max-w-[40rem]">
           <SectionLabel index="03" className="mb-8">

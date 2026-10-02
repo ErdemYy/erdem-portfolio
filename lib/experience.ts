@@ -4,7 +4,21 @@ import { useSyncExternalStore } from "react";
 /*  Reactive store — only for things that change rarely (chapter, UI) */
 /* ------------------------------------------------------------------ */
 
+export type PerfTier = "high" | "medium" | "low";
+
+/** mobile-small < 380 · mobile < 768 · tablet < 1024 · desktop < 1536 · large */
+export type Breakpoint = "xs" | "sm" | "md" | "lg" | "xl";
+
 export type ExperienceState = {
+  /** Performance tier (see lib/performance.ts). Can only step down at runtime. */
+  perf: PerfTier;
+  /** chapters to preload ahead of the current one */
+  loadAhead: number;
+  bp: Breakpoint;
+  /** short landscape viewport (phones on their side) */
+  landscapeShort: boolean;
+  /** repository selected in the laptop browser (mirrored to the mobile action bar) */
+  repoIndex: number;
   /** Device flags are resolved on the client after mount. */
   ready: boolean;
   mobile: boolean;
@@ -35,6 +49,11 @@ export type ExperienceState = {
 };
 
 const initial: ExperienceState = {
+  perf: "high",
+  loadAhead: 2,
+  bp: "lg",
+  landscapeShort: false,
+  repoIndex: 0,
   ready: false,
   mobile: false,
   coarse: false,

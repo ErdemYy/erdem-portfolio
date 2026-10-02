@@ -1,28 +1,52 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import { PerformanceMonitor, useGLTF } from "@react-three/drei";
 import { ACESFilmicToneMapping, NoToneMapping } from "three";
 import ExperienceScene from "./ExperienceScene";
 import LoadProgressBridge from "./LoadProgressBridge";
 import { HtmlPortalContext } from "@/components/three/SceneHtml";
-import { useExperience } from "@/lib/experience";
+import { getExperience, setExperience, useExperience } from "@/lib/experience";
+import { degradePerf, perfConfig } from "@/lib/performance";
 import { assetList } from "@/data/assets";
+
+/** If the canvas cannot be created at all, fall back to the lightweight page. */
+class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.warn("[3D] canvas failed — showing the lightweight version", error);
+    document.documentElement.classList.add("no-webgl");
+    setExperience({ webgl: false, heroReady: true });
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
 
 /**
  * The single fixed, fullscreen WebGL canvas.
- * Desktop: composer handles tone mapping + SMAA, MSAA off.
- * Mobile / low power: no composer, native tone mapping + MSAA, lower DPR.
+ *
+ * Settings that cannot change without recreating the GL context (MSAA, power
+ * preference) are taken from the tier at mount. Everything else follows the
+ * live tier: if the frame rate drops, PerformanceMonitor steps the tier down
+ * (high → medium → low) — dpr, post-processing, particles and lights follow.
  */
 export default function ExperienceCanvas() {
-  const lowPower = useExperience((s) => s.mobile || s.coarse);
+  const perf = useExperience((s) => s.perf);
   const reduced = useExperience((s) => s.reducedMotion);
-  const maxDpr = lowPower ? 1.5 : 2;
-  // PerformanceMonitor can only ever lower the pixel ratio
+  const cfg = perfConfig[perf];
+  // fixed at mount: these cannot change without recreating the GL context
+  const [initial] = useState(() => perfConfig[getExperience().perf]);
   const htmlRoot = useRef<HTMLDivElement>(null);
-  const [degraded, setDegraded] = useState(false);
-  const dpr = degraded ? 1 : maxDpr;
+
+  // expose the live tier (CSS / tests)
+  useEffect(() => {
+    document.documentElement.dataset.perf = perf;
+  }, [perf]);
 
   // drop cached GLTFs when the canvas goes away (route change / unmount)
   useEffect(
@@ -36,39 +60,34 @@ export default function ExperienceCanvas() {
     <div className="fixed inset-0 z-0">
       <LoadProgressBridge />
       <div className="absolute inset-0" aria-hidden="true">
-      <Canvas
-        key={lowPower ? "lite" : "full"}
-        dpr={[1, dpr]}
-        camera={{ fov: 36, near: 0.1, far: 260, position: [3.2, 5.8, 15.5] }}
-        gl={{
-          antialias: lowPower,
-          alpha: false,
-          stencil: false,
-          powerPreference: "high-performance",
-          toneMapping: lowPower ? ACESFilmicToneMapping : NoToneMapping,
-        }}
-        onCreated={({ gl }) => {
-          gl.domElement.addEventListener("webglcontextlost", (e) =>
-            e.preventDefault(),
-          );
-        }}
-      >
-        <PerformanceMonitor
-          onDecline={() => setDegraded(true)}
-          onIncline={() => setDegraded(false)}
-          flipflops={3}
-          onFallback={() => setDegraded(true)}
-        />
-        <HtmlPortalContext.Provider value={htmlRoot}>
-          <ExperienceScene lowPower={lowPower} reduced={reduced} />
-        </HtmlPortalContext.Provider>
-      </Canvas>
+        <CanvasBoundary>
+          <Canvas
+            dpr={[1, cfg.dprMax]}
+            camera={{ fov: 36, near: 0.1, far: 260, position: [3.2, 5.8, 15.5] }}
+            gl={{
+              antialias: initial.antialias,
+              alpha: false,
+              stencil: false,
+              powerPreference: initial.powerPreference,
+              toneMapping: initial.composer ? NoToneMapping : ACESFilmicToneMapping,
+            }}
+            onCreated={({ gl }) => {
+              gl.domElement.addEventListener("webglcontextlost", (e) => e.preventDefault());
+            }}
+          >
+            <PerformanceMonitor
+              onDecline={degradePerf}
+              onFallback={degradePerf}
+              flipflops={2}
+            />
+            <HtmlPortalContext.Provider value={htmlRoot}>
+              <ExperienceScene reduced={reduced} />
+            </HtmlPortalContext.Provider>
+          </Canvas>
+        </CanvasBoundary>
       </div>
       {/* DOM layer for drei <Html> (screens + labels) */}
-      <div
-        ref={htmlRoot}
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      />
+      <div ref={htmlRoot} className="pointer-events-none absolute inset-0 overflow-hidden" />
     </div>
   );
 }

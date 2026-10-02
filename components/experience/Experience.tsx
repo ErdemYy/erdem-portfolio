@@ -31,6 +31,7 @@ export default function Experience() {
 
       <ScrollController />
       {ready && webgl && <ExperienceCanvas />}
+      {ready && !webgl && <div className="fallback-bg" aria-hidden="true" />}
       <ExperienceOverlay />
       <Header />
       <ProgressIndicator />

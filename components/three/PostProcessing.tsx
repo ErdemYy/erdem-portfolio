@@ -12,36 +12,45 @@ import {
 } from "@react-three/postprocessing";
 import { BlendFunction, ToneMappingMode } from "postprocessing";
 import { rig } from "@/lib/rig";
+import { perfConfig } from "@/lib/performance";
+import { useExperience } from "@/lib/experience";
 
 /**
- * Cinematic, not showy: light bloom on emissives, vignette, a breath of
- * film grain and filmic tone mapping. Bloom strength follows the light
- * profile of the current chapter.
+ * Cinematic, not showy. HIGH: bloom + vignette + grain + SMAA. MEDIUM: a
+ * half-strength, low-resolution bloom and a lighter vignette only. LOW never
+ * mounts this (the renderer tone-maps by itself).
  */
 export default function PostProcessing({ reduced }: { reduced: boolean }) {
+  const perf = useExperience((s) => s.perf);
+  const cfg = perfConfig[perf];
   const bloom = useRef<{ intensity: number } | null>(null);
 
   useFrame(() => {
-    if (bloom.current) bloom.current.intensity = rig.bloom;
+    if (bloom.current) bloom.current.intensity = rig.bloom * cfg.bloom;
   });
 
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
       <Bloom
         ref={bloom as never}
-        intensity={0.4}
+        intensity={0.4 * cfg.bloom}
         luminanceThreshold={0.85}
         luminanceSmoothing={0.2}
+        resolutionScale={cfg.bloomResolution}
         mipmapBlur
       />
-      <Vignette eskil={false} offset={0.22} darkness={0.75} />
-      <Noise
-        premultiply
-        blendFunction={BlendFunction.SOFT_LIGHT}
-        opacity={reduced ? 0.15 : 0.32}
-      />
+      <Vignette eskil={false} offset={0.22} darkness={cfg.vignette} />
+      {cfg.noise ? (
+        <Noise
+          premultiply
+          blendFunction={BlendFunction.SOFT_LIGHT}
+          opacity={reduced ? 0.15 : 0.32}
+        />
+      ) : (
+        <></>
+      )}
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      <SMAA />
+      {cfg.smaa ? <SMAA /> : <></>}
     </EffectComposer>
   );
 }
