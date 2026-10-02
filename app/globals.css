@@ -1,0 +1,409 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/*  Design tokens — black, graphite, soft white, muted grey            */
+/*  One controlled accent (signal) + one technical blue used sparingly */
+/* ------------------------------------------------------------------ */
+@theme inline {
+  --color-ink: #060709;
+  --color-graphite: #101216;
+  --color-steel: #1a1d23;
+  --color-line: rgba(236, 234, 228, 0.12);
+  --color-bone: #ecebe6;
+  --color-mute: #8b8f98;
+  --color-signal: #ff5b2e;
+  --color-tech: #4f8cff;
+
+  --font-display: var(--font-grotesk);
+  --font-sans: var(--font-grotesk);
+  --font-mono: var(--font-jetbrains);
+  --font-serif: var(--font-instrument);
+}
+
+:root {
+  color-scheme: dark;
+  --stack-vis: 0;
+  --backend-vis: 0;
+}
+
+html {
+  background: #060709;
+  overflow-x: clip;
+  scroll-behavior: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: #060709;
+  color: var(--color-bone);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-signal);
+  color: #060709;
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Typography                                                         */
+/* ------------------------------------------------------------------ */
+.display {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: -0.045em;
+  line-height: 0.86;
+}
+
+.display-xl {
+  font-size: clamp(3.1rem, 11.5vw, 11.5rem);
+}
+.display-lg {
+  font-size: clamp(2.6rem, 8vw, 8rem);
+}
+.display-md {
+  font-size: clamp(2rem, 5.4vw, 5.2rem);
+}
+.display-sm {
+  font-size: clamp(1.5rem, 3vw, 2.6rem);
+}
+
+.serif {
+  font-family: var(--font-serif), serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+
+.label {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+}
+
+.body-copy {
+  font-size: clamp(1rem, 1.15vw, 1.15rem);
+  line-height: 1.6;
+  color: rgba(236, 235, 230, 0.72);
+  max-width: 34rem;
+}
+
+.placeholder-text {
+  color: rgba(236, 235, 230, 0.58);
+}
+
+/* masked line reveal */
+.mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+.mask > * {
+  display: block;
+  will-change: transform;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Overlay scrims keep copy readable on top of the 3D scene           */
+/* ------------------------------------------------------------------ */
+.scrim-left {
+  background: linear-gradient(
+    90deg,
+    rgba(6, 7, 9, 0.86) 0%,
+    rgba(6, 7, 9, 0.55) 38%,
+    rgba(6, 7, 9, 0) 68%
+  );
+}
+.scrim-right {
+  background: linear-gradient(
+    270deg,
+    rgba(6, 7, 9, 0.86) 0%,
+    rgba(6, 7, 9, 0.55) 38%,
+    rgba(6, 7, 9, 0) 68%
+  );
+}
+.scrim-bottom {
+  background: linear-gradient(
+    0deg,
+    rgba(6, 7, 9, 0.9) 0%,
+    rgba(6, 7, 9, 0.5) 45%,
+    rgba(6, 7, 9, 0) 100%
+  );
+}
+@media (max-width: 767px) {
+  .scrim-left,
+  .scrim-right {
+    background:
+      linear-gradient(
+        0deg,
+        rgba(6, 7, 9, 0.94) 0%,
+        rgba(6, 7, 9, 0.78) 42%,
+        rgba(6, 7, 9, 0) 78%
+      ),
+      rgba(6, 7, 9, 0.38);
+  }
+  /* copy sits above the visual on phones — dim the whole backdrop */
+  .scrim-left.project-dim,
+  .scrim-right.project-dim {
+    background: rgba(6, 7, 9, 0.7);
+  }
+  .node-label.node-tech {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Links + buttons                                                    */
+/* ------------------------------------------------------------------ */
+.link-underline {
+  position: relative;
+  display: inline-block;
+}
+.link-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.2em;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.link-underline:hover::after,
+.link-underline:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--color-line);
+  padding: 0.95rem 1.5rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-bone);
+  background: rgba(6, 7, 9, 0.35);
+  backdrop-filter: blur(6px);
+  transition:
+    background 0.4s,
+    color 0.4s,
+    border-color 0.4s;
+}
+.btn:hover,
+.btn:focus-visible {
+  background: var(--color-bone);
+  color: #060709;
+  border-color: var(--color-bone);
+}
+.btn-solid {
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+  color: #060709;
+}
+.btn-solid:hover,
+.btn-solid:focus-visible {
+  background: var(--color-bone);
+  border-color: var(--color-bone);
+}
+
+:focus-visible {
+  outline: 1px solid var(--color-signal);
+  outline-offset: 4px;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Custom cursor (fine pointers only)                                 */
+/* ------------------------------------------------------------------ */
+html.has-custom-cursor,
+html.has-custom-cursor a,
+html.has-custom-cursor button,
+html.has-custom-cursor [data-cursor] {
+  cursor: none;
+}
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  pointer-events: none;
+  border-radius: 9999px;
+  mix-blend-mode: difference;
+  will-change: transform;
+}
+.cursor-dot {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  background: #fff;
+}
+.cursor-ring {
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  opacity: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  3D overlays                                                        */
+/* ------------------------------------------------------------------ */
+.node-label {
+  display: inline-block;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(236, 235, 230, 0.78);
+  text-shadow: 0 0 8px rgba(6, 7, 9, 0.9);
+  transition: opacity 0.2s;
+}
+.node-category {
+  font-size: 11px;
+  color: #fff;
+  letter-spacing: 0.3em;
+  padding: 4px 8px;
+  border: 1px solid rgba(236, 235, 230, 0.35);
+  background: rgba(6, 7, 9, 0.55);
+}
+.node-center {
+  font-size: 12px;
+  color: var(--color-signal);
+  letter-spacing: 0.32em;
+}
+.node-tech {
+  font-size: 10px;
+  color: rgba(236, 235, 230, 0.7);
+}
+.screen-surface {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0b0c0f;
+  box-shadow: 0 0 60px rgba(120, 150, 255, 0.12);
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Misc                                                               */
+/* ------------------------------------------------------------------ */
+.hairline {
+  height: 1px;
+  background: var(--color-line);
+}
+
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+@keyframes scroll-cue {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  45% {
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  55% {
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+  100% {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+}
+.scroll-cue-line {
+  animation: scroll-cue 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@media (max-width: 767px) {
+  .btn {
+    padding: 0.85rem 1.1rem;
+  }
+}
+
+/* glass over the 3D screens: faint diagonal reflection + vignette */
+.screen-glass {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0) 68%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.4);
+}
+
+/* a project "opens" on the screen */
+@keyframes screen-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+    transform: none;
+  }
+}
+.screen-swap {
+  animation: screen-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Language switch: text fades out, swaps, fades in (never the 3D)    */
+/* ------------------------------------------------------------------ */
+main,
+body > header,
+footer,
+#mobile-menu nav,
+.screen-surface > :not(.screen-glass),
+.node-label {
+  transition: opacity 0.17s ease;
+}
+html[data-lang-switching] main,
+html[data-lang-switching] body > header,
+html[data-lang-switching] footer,
+html[data-lang-switching] #mobile-menu nav,
+html[data-lang-switching] .screen-surface > :not(.screen-glass),
+html[data-lang-switching] .node-label {
+  opacity: 0 !important;
+}
