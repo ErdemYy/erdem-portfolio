@@ -7,7 +7,7 @@ import type { Group } from "three";
 import UIPane from "./UIPane";
 import { poseWeight, setGroupOpacity } from "@/lib/three-utils";
 import { useExperience } from "@/lib/experience";
-import { perfConfig } from "@/lib/performance";
+import { usePerf } from "@/lib/performance";
 
 const panes = [
   { p: [-3.6, 4.4, -1.4], r: [0, 0.32, 0], w: 1.9, h: 1.25, rows: 4 },
@@ -21,8 +21,8 @@ const panes = [
 export default function FloatingUI() {
   const group = useRef<Group>(null);
   const reducedMotion = useExperience((st) => st.reducedMotion);
-  const perf = useExperience((st) => st.perf);
-  const still = reducedMotion || !perfConfig[perf].floatPanes;
+  const floatPanes = usePerf().floatPanes;
+  const still = reducedMotion || !floatPanes;
 
   useFrame(() => {
     if (group.current) setGroupOpacity(group.current, poseWeight("web"));

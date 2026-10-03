@@ -12,8 +12,7 @@ import {
 } from "@react-three/postprocessing";
 import { BlendFunction, ToneMappingMode } from "postprocessing";
 import { rig } from "@/lib/rig";
-import { perfConfig } from "@/lib/performance";
-import { useExperience } from "@/lib/experience";
+import { usePerf } from "@/lib/performance";
 
 /**
  * Cinematic, not showy. HIGH: bloom + vignette + grain + SMAA. MEDIUM: a
@@ -21,8 +20,7 @@ import { useExperience } from "@/lib/experience";
  * mounts this (the renderer tone-maps by itself).
  */
 export default function PostProcessing({ reduced }: { reduced: boolean }) {
-  const perf = useExperience((s) => s.perf);
-  const cfg = perfConfig[perf];
+  const cfg = usePerf();
   const bloom = useRef<{ intensity: number } | null>(null);
 
   useFrame(() => {

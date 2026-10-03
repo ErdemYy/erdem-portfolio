@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { AmbientLight, DirectionalLight, FogExp2, HemisphereLight, PointLight } from "three";
 import { rig } from "@/lib/rig";
-import { frame, useExperience } from "@/lib/experience";
-import { perfConfig } from "@/lib/performance";
+import { frame } from "@/lib/experience";
+import { usePerf } from "@/lib/performance";
 
 /**
  * Follows the camera target like a film crew: key, fill, rim and an accent
@@ -19,7 +19,7 @@ export default function Lighting() {
   const accent = useRef<PointLight>(null);
   const ambient = useRef<AmbientLight>(null);
   const { scene } = useThree();
-  const cfg = perfConfig[useExperience((st) => st.perf)];
+  const cfg = usePerf();
 
   useEffect(() => {
     const k = key.current;

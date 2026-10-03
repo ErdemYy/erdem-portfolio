@@ -101,6 +101,25 @@ export type LightKey = keyof typeof lightProfiles;
 /*  Camera waypoints                                                   */
 /* ------------------------------------------------------------------ */
 
+/** Phone composition for one chapter: ONE subject, big and centred. */
+export type MobileCamera = {
+  /** camera position (world) */
+  position?: V3;
+  /** what the camera looks at (world) */
+  target?: V3;
+  fov?: number;
+  /** camera ↔ target distance — overrides the length of position − target */
+  distance?: number;
+  /** apparent subject scale: 1.25 = 25% larger on screen (moves the camera in) */
+  scale?: number;
+  orbit?: number;
+  dolly?: number;
+  /** world width of the screen this shot looks at (the lens widens to fit it) */
+  screenWidth?: number;
+  /** skip the generic "widen the lens to cover more" step */
+  tight?: boolean;
+};
+
 export type Waypoint = {
   pos: V3;
   target: V3;
@@ -119,12 +138,9 @@ export type Waypoint = {
   screenWidth?: number;
   /**
    * Portrait (phone) composition. Replaces the listed fields when the viewport
-   * is portrait — a separate single-focus shot instead of the desk-wide one.
-   * `tight` skips the generic "widen the lens to cover more" step.
+   * is portrait — a separate single-subject shot instead of the desk-wide one.
    */
-  m?: Partial<Pick<Waypoint, "pos" | "target" | "fov" | "orbit" | "dolly" | "screenWidth">> & {
-    tight?: boolean;
-  };
+  mobileCamera?: MobileCamera;
   light: LightKey;
 };
 
@@ -155,7 +171,7 @@ export const waypoints: Record<string, Waypoint> = {
     orbit: 0.12,
     dolly: -0.05,
     frameMobile: [0, 0.14],
-    m: { pos: [2.2, 4.5, 8.6], target: [0.2, 3.35, 0], fov: 38, tight: true },
+    mobileCamera: { position: [2.2, 4.5, 8.6], target: [0.2, 3.35, 0], fov: 38, tight: true },
     light: "studio",
   },
   // slow orbit around the desk
@@ -166,7 +182,7 @@ export const waypoints: Record<string, Waypoint> = {
     orbit: 0.6,
     frame: [0.17, 0],
     frameMobile: [0, 0.2],
-    m: { pos: [-3.8, 4.5, 8.4], target: [0.2, 3.35, 0], fov: 38, orbit: 0.35, tight: true },
+    mobileCamera: { position: [-3.8, 4.5, 8.4], target: [0.2, 3.35, 0], fov: 38, orbit: 0.35, tight: true },
     light: "soft",
   },
   // pulled back â€” the whole environment, travelling across it
@@ -177,7 +193,7 @@ export const waypoints: Record<string, Waypoint> = {
     orbit: -0.25,
     frame: [0.12, 0],
     frameMobile: [0, 0.14],
-    m: { pos: [4, 9, 20], target: [1, 2, -6], fov: 44, tight: true },
+    mobileCamera: { position: [4, 9, 20], target: [1, 2, -6], fov: 44, tight: true },
     light: "soft",
   },
   web: {
@@ -187,7 +203,7 @@ export const waypoints: Record<string, Waypoint> = {
     orbit: -0.12,
     frame: [0.17, 0],
     frameMobile: [0, 0.2],
-    m: { pos: [1.9, 4.4, 5.8], target: [0.1, 3.7, -0.8], fov: 40, tight: true },
+    mobileCamera: { position: [1.9, 4.4, 5.8], target: [0.1, 3.7, -0.8], fov: 40, tight: true },
     light: "screen",
   },
   mobile: {
@@ -196,8 +212,15 @@ export const waypoints: Record<string, Waypoint> = {
     fov: 32,
     orbit: 0.22,
     frame: [0.17, 0],
-    frameMobile: [0, 0.34],
-    m: { pos: at(phone, 2.6, 3.6, 11.6), target: at(phone, 0, 2.7, 0), fov: 40, tight: true },
+    frameMobile: [0, 0.17],
+    mobileCamera: {
+      position: at(phone, 2.2, 3.4, 11.6),
+      target: at(phone, 0, 2.9, 0),
+      fov: 40,
+      scale: 1.12,
+      orbit: 0.3,
+      tight: true,
+    },
     light: "cool",
   },
   backend: {
@@ -206,8 +229,15 @@ export const waypoints: Record<string, Waypoint> = {
     fov: 34,
     orbit: -0.15,
     frame: [0.17, 0],
-    frameMobile: [0, 0.2],
-    m: { pos: at(backend, 1.4, 3.8, 12.5), target: at(backend, 0, 3.1, 0), fov: 40, tight: true },
+    frameMobile: [0, 0.17],
+    // the rack stands 6 tall: frame its lit upper face, big, above the copy
+    mobileCamera: {
+      position: at(backend, 1.2, 4.2, 8.6),
+      target: at(backend, 0, 3.8, 0),
+      distance: 13.5,
+      fov: 40,
+      tight: true,
+    },
     light: "technical",
   },
   systems: {
@@ -217,8 +247,16 @@ export const waypoints: Record<string, Waypoint> = {
     orbit: -0.25,
     dolly: -0.1,
     frame: [0.17, 0],
-    frameMobile: [0, 0.2],
-    m: { screenWidth: 11 },
+    frameMobile: [0, 0.17],
+    // phones show ONE rack (the backend station) from the other side
+    mobileCamera: {
+      position: at(backend, -1.6, 4.4, 8.8),
+      target: at(backend, 0, 3.8, 0),
+      distance: 13.5,
+      fov: 40,
+      orbit: 0.3,
+      tight: true,
+    },
     light: "technical",
   },
   laptop: {
@@ -229,6 +267,7 @@ export const waypoints: Record<string, Waypoint> = {
     frame: [0.2, 0],
     frameMobile: [0, 0.14],
     screenWidth: 4.75,
+    mobileCamera: { distance: 10.4, fov: 38, screenWidth: 4.75, tight: true },
     light: "screen",
   },
   work: {
@@ -238,6 +277,14 @@ export const waypoints: Record<string, Waypoint> = {
     orbit: 0.2,
     frame: [0.16, 0],
     frameMobile: [0, 0.18],
+    // phones: just the laptop, close — not the whole plinth
+    mobileCamera: {
+      position: at(laptop, 3.4, 3.7, 8.6),
+      target: at(laptop, -0.1, 2.2, -1.2),
+      fov: 40,
+      scale: 0.72,
+      tight: true,
+    },
     light: "focused",
   },
   // Projects live on the laptop glass: centred, steady, with a slow sway
@@ -250,6 +297,7 @@ export const waypoints: Record<string, Waypoint> = {
     dolly: -0.1,
     frameMobile: [0, 0.14],
     screenWidth: 4.75,
+    mobileCamera: { distance: 9.4, fov: 38, screenWidth: 4.75, tight: true },
     light: "screen",
   },
   // the monitor shows the featured project; camera closes in on it
@@ -260,6 +308,8 @@ export const waypoints: Record<string, Waypoint> = {
     dolly: -0.14,
     frameMobile: [0, 0.12],
     screenWidth: 2.2,
+    // phones: straight onto the monitor — the project UI IS the screen
+    mobileCamera: { distance: 3.9, fov: 38, screenWidth: 2.2, tight: true },
     light: "screen",
   },
 
@@ -271,7 +321,7 @@ export const waypoints: Record<string, Waypoint> = {
     orbit: 0.4,
     frame: [0.18, 0],
     frameMobile: [0, 0.3],
-    m: { pos: at(cluster, 0, 2.4, 17), target: at(cluster, 0, -0.4, 0), screenWidth: 10 },
+    mobileCamera: { position: at(cluster, 0, 2.4, 17), target: at(cluster, 0, -0.4, 0), screenWidth: 10 },
     light: "technical",
   },
   engineering: {
@@ -279,7 +329,7 @@ export const waypoints: Record<string, Waypoint> = {
     target: [0, 2.8, 0.3],
     fov: 34,
     orbit: 0.3,
-    m: { pos: [0.6, 10.5, 5.8], target: [0, 2.8, 0.3], fov: 40, tight: true },
+    mobileCamera: { position: [0.6, 10.5, 5.8], target: [0, 2.8, 0.3], fov: 40, tight: true },
     light: "soft",
   },
   journey: {
@@ -289,7 +339,7 @@ export const waypoints: Record<string, Waypoint> = {
     orbit: -0.3,
     frame: [0.14, 0],
     frameMobile: [0, 0.2],
-    m: { pos: [-3.2, 2.8, 7.4], target: [0, 3.3, 0], fov: 40, tight: true },
+    mobileCamera: { position: [-3.2, 2.8, 7.4], target: [0, 3.3, 0], fov: 40, tight: true },
     light: "studio",
   },
   // the laptop shows the repositories â€” close and steady so it can be used
@@ -300,6 +350,7 @@ export const waypoints: Record<string, Waypoint> = {
     frame: [0.1, 0],
     frameMobile: [0, 0.14],
     screenWidth: 4.75,
+    mobileCamera: { distance: 9.4, fov: 38, screenWidth: 4.75, tight: true },
     light: "screen",
   },
 
@@ -312,7 +363,7 @@ export const waypoints: Record<string, Waypoint> = {
     orbit: 0.1,
     frame: [0.1, 0],
     frameMobile: [0, 0.1],
-    m: { pos: [5, 12, 26], target: [2, 2, -8], fov: 44, tight: true },
+    mobileCamera: { position: [5, 12, 26], target: [2, 2, -8], fov: 44, tight: true },
     light: "minimal",
   },
 };

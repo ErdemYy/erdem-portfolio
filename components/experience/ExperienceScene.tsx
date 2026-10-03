@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { ACESFilmicToneMapping, NoToneMapping, Plane, Vector3 } from "three";
 import CameraController from "./CameraController";
@@ -20,7 +20,7 @@ import {
 } from "@/components/three/stations/Stations";
 import { frame, setExperience, useExperience } from "@/lib/experience";
 import { rig } from "@/lib/rig";
-import { perfConfig } from "@/lib/performance";
+import { usePerf } from "@/lib/performance";
 
 /** Reveals the world bottom-up through a global clipping plane. */
 function IntroReveal() {
@@ -53,13 +53,28 @@ const stationPoses: Record<string, readonly string[]> = {
   laptop: ["laptop", "work", "projectScreen", "projectScreenFlip", "github"],
 };
 
-/** Stations needed around the active chapter: one behind, `ahead` in front. */
-function wantedStations(chapter: number, ahead: number) {
+/** Phones show a single rack: the systems chapters reuse the backend station. */
+const mobileStationPoses: Record<string, readonly string[]> = {
+  ...stationPoses,
+  backend: ["backend", "systems"],
+  systems: [],
+};
+
+/** How long a station that just left stays mounted so its fade-out can finish. */
+const LINGER_MS = 1600;
+
+/** Stations needed around the active chapter: `behind` before it, `ahead` in front. */
+function wantedStations(
+  chapter: number,
+  ahead: number,
+  behind: number,
+  table: Record<string, readonly string[]>,
+) {
   const set = new Set<string>();
-  for (let i = chapter - 1; i <= chapter + ahead; i++) {
+  for (let i = chapter - behind; i <= chapter + ahead; i++) {
     const pose = frame.chapters[i]?.pose;
     if (!pose) continue;
-    for (const [key, poses] of Object.entries(stationPoses)) {
+    for (const [key, poses] of Object.entries(table)) {
       if (poses.includes(pose)) set.add(key);
     }
   }
@@ -68,11 +83,11 @@ function wantedStations(chapter: number, ahead: number) {
 
 export default function ExperienceScene({ reduced }: Props) {
   const heroReady = useExperience((s) => s.heroReady);
-  const perf = useExperience((s) => s.perf);
   const chapter = useExperience((s) => s.chapter);
   const loadAhead = useExperience((s) => s.loadAhead);
   const gl = useThree((s) => s.gl);
-  const cfg = perfConfig[perf];
+  const mobile = useExperience((s) => s.mobile);
+  const cfg = usePerf();
   const stage = useStage(heroReady);
 
   // the composer tone-maps on the high/medium tiers; the renderer does it on low
@@ -80,18 +95,24 @@ export default function ExperienceScene({ reduced }: Props) {
     gl.toneMapping = cfg.composer ? NoToneMapping : ACESFilmicToneMapping;
   }, [gl, cfg.composer]);
 
-  // high tier: everything streams in right behind the hero.
-  // medium / low: only the stations around the current chapter exist at all —
-  // the rest is never loaded, and dropped (GPU buffers disposed) once behind us.
+  // desktop high tier: everything streams in right behind the hero.
+  // phones / medium / low: only the stations around the current chapter exist —
+  // current model live, NEXT one preloaded (invisible until its chapter), the
+  // previous one disposed as soon as its fade-out is done.
+  const table = mobile ? mobileStationPoses : stationPoses;
+  const ahead = mobile ? Math.min(loadAhead, 1) : loadAhead;
   const wanted = useMemo(
-    () => (perf === "high" ? null : wantedStations(chapter, loadAhead)),
+    () =>
+      cfg.streaming ? wantedStations(chapter, ahead, cfg.keepBehind, table) : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [perf, chapter, loadAhead, heroReady],
+    [cfg.streaming, cfg.keepBehind, chapter, ahead, table, heroReady],
   );
+  const lingering = useLingering(wanted);
   const show = (key: string, minStage: number) =>
-    heroReady && (wanted ? wanted.has(key) : stage >= minStage);
+    heroReady &&
+    (wanted ? wanted.has(key) || lingering.has(key) : stage >= minStage);
 
-  const particles = reduced ? Math.min(cfg.particles, 100) : cfg.particles;
+  const particles = cfg.particles;
 
   return (
     <>
@@ -117,6 +138,33 @@ export default function ExperienceScene({ reduced }: Props) {
       {cfg.composer && <PostProcessing reduced={reduced} />}
     </>
   );
+}
+
+/** Stations that just dropped out of `wanted`, kept alive until their fade-out is over. */
+function useLingering(wanted: Set<string> | null) {
+  const prev = useRef<Set<string> | null>(null);
+  const [lingering, setLingering] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    const before = prev.current;
+    prev.current = wanted;
+    if (!before || !wanted) return;
+    const dropped = [...before].filter((k) => !wanted.has(k));
+    if (!dropped.length) return;
+    setLingering((s) => new Set([...s, ...dropped]));
+    // not cleared on re-run: each drop owns its own timer
+    window.setTimeout(
+      () =>
+        setLingering((s) => {
+          const next = new Set(s);
+          dropped.forEach((k) => next.delete(k));
+          return next;
+        }),
+      LINGER_MS,
+    );
+  }, [wanted]);
+
+  return lingering;
 }
 
 function useStage(heroReady: boolean) {

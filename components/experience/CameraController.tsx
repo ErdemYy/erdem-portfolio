@@ -57,15 +57,25 @@ function evaluate(
   aspect: number,
   lens: number,
 ) {
-  // portrait phones get their own single-focus composition where one exists
-  const pm = portrait ? w.m : undefined;
-  const src = pm ? { ...w, ...pm } : w;
-  const tight = !!pm?.tight;
+  // portrait phones get their own single-subject composition where one exists
+  const mc = portrait ? w.mobileCamera : undefined;
+  const src = {
+    pos: mc?.position ?? w.pos,
+    target: mc?.target ?? w.target,
+    fov: mc?.fov ?? w.fov,
+    orbit: mc?.orbit ?? w.orbit,
+    dolly: mc?.dolly ?? w.dolly,
+    screenWidth: mc?.screenWidth ?? w.screenWidth,
+  };
+  const tight = !!mc?.tight;
   const fitK = tight ? 1 : fit;
   const lensK = tight ? 1 : lens;
 
   out.target.set(...src.target);
   off.set(src.pos[0] - src.target[0], src.pos[1] - src.target[1], src.pos[2] - src.target[2]);
+  // explicit distance / scale: the subject is sized by the camera, not by guesswork
+  if (mc?.distance) off.setLength(mc.distance);
+  if (mc?.scale) off.multiplyScalar(1 / mc.scale);
   const t = p - 0.5;
   const orbit = (src.orbit ?? 0) * t * motion;
   if (orbit) off.applyAxisAngle(up.set(0, 1, 0), orbit);

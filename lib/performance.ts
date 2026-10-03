@@ -1,4 +1,4 @@
-import { getExperience, setExperience, type PerfTier } from "./experience";
+import { getExperience, setExperience, useExperience, type PerfTier } from "./experience";
 
 export type { PerfTier };
 
@@ -33,6 +33,19 @@ export type PerfConfig = {
   constellationLinks: boolean;
   /** PC station + other decorative models */
   decor: boolean;
+  /** soft contact shading under each station (no real-time shadow maps exist) */
+  softShadows: boolean;
+  /** hide tiny clutter meshes inside the desk model */
+  cullClutter: boolean;
+  /** HTML node labels floating around the 3D models */
+  labels: boolean;
+  /**
+   * Streamed stations (phone / rack / laptop …): only the ones around the
+   * active chapter exist; the rest are never loaded and dropped once behind.
+   */
+  streaming: boolean;
+  /** chapters of look-behind that stay resident while streaming (0 = none) */
+  keepBehind: number;
 };
 
 export const perfConfig: Record<PerfTier, PerfConfig> = {
@@ -55,6 +68,11 @@ export const perfConfig: Record<PerfTier, PerfConfig> = {
     constellationTechs: 99,
     constellationLinks: true,
     decor: true,
+    softShadows: true,
+    cullClutter: false,
+    labels: true,
+    streaming: false,
+    keepBehind: 1,
   },
   medium: {
     dprMax: 1.25,
@@ -75,6 +93,11 @@ export const perfConfig: Record<PerfTier, PerfConfig> = {
     constellationTechs: 3,
     constellationLinks: false,
     decor: false,
+    softShadows: true,
+    cullClutter: false,
+    labels: true,
+    streaming: true,
+    keepBehind: 1,
   },
   low: {
     dprMax: 1,
@@ -95,8 +118,72 @@ export const perfConfig: Record<PerfTier, PerfConfig> = {
     constellationTechs: 2,
     constellationLinks: false,
     decor: false,
+    softShadows: false,
+    cullClutter: true,
+    labels: false,
+    streaming: true,
+    keepBehind: 0,
   },
 };
+
+/* ------------------------------------------------------------------ */
+/*  Mobile resolution — a phone gets a lighter variant of every tier   */
+/* ------------------------------------------------------------------ */
+
+/** Share of the desktop particle count a phone keeps, per tier. */
+const mobileParticleShare: Record<PerfTier, number> = { high: 0.34, medium: 0.5, low: 0 };
+const mobileDprMax: Record<PerfTier, number> = { high: 1.5, medium: 1.25, low: 1 };
+
+/**
+ * Tier + device class → the numbers components actually use. Everything on a
+ * phone is a cap on the tier's own value, so a phone is never heavier than
+ * the same tier on desktop.
+ */
+export function resolvePerf(tier: PerfTier, mobile: boolean, reducedMotion = false): PerfConfig {
+  const base = perfConfig[tier];
+  const particles = reducedMotion
+    ? 0
+    : mobile
+      ? Math.round(base.particles * mobileParticleShare[tier])
+      : base.particles;
+  if (!mobile) return { ...base, particles };
+  return {
+    ...base,
+    particles,
+    // devicePixelRatio is clamped, never used raw
+    dprMax: Math.min(base.dprMax, mobileDprMax[tier]),
+    // MSAA is cheaper than a full-screen SMAA pass on tile-based GPUs
+    antialias: tier !== "low",
+    powerPreference: tier === "high" ? "default" : base.powerPreference,
+    // post-processing stays, but very light
+    bloom: base.bloom * 0.55,
+    bloomResolution: Math.min(base.bloomResolution, 0.25),
+    noise: false,
+    smaa: false,
+    vignette: Math.min(base.vignette, 0.4),
+    // minimal lighting: key + fill + ambient + one accent point (no rim light)
+    rimLight: false,
+    accentLight: tier !== "low",
+    envResolution: Math.min(base.envResolution, 128),
+    pulses: false,
+    floatPanes: false,
+    constellationTechs: Math.min(base.constellationTechs, 3),
+    constellationLinks: false,
+    decor: false,
+    labels: false,
+    // a phone only keeps the chapter's own model resident
+    streaming: true,
+    cullClutter: tier !== "high",
+  };
+}
+
+/** The live perf config: tier + device class + reduced-motion, all reactive. */
+export function usePerf(): PerfConfig {
+  const perf = useExperience((s) => s.perf);
+  const mobile = useExperience((s) => s.mobile);
+  const reduced = useExperience((s) => s.reducedMotion);
+  return resolvePerf(perf, mobile, reduced);
+}
 
 /* ------------------------------------------------------------------ */
 /*  Capability detection — feature-detected, never UA-sniffed          */

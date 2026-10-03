@@ -1,8 +1,10 @@
 import {
+  Box3,
   Material,
   Mesh,
   Object3D,
   Texture,
+  Vector3,
   type BufferGeometry,
   type Group,
 } from "three";
@@ -49,6 +51,71 @@ export function setGroupOpacity(group: Group, value: number) {
   }
   for (const { m, base } of cache.materials) m.opacity = base * value;
   group.visible = value > 0.003;
+}
+
+type ModelFade = { items: { m: Material; base: number; transparent: boolean }[] };
+const modelFades = new WeakMap<Group, ModelFade>();
+
+/** Forget the cached materials (call when a model finished loading into the group). */
+export function resetModelFade(group: Group | null) {
+  if (group) modelFades.delete(group);
+}
+
+/**
+ * Fade a whole loaded model in/out. Unlike `setGroupOpacity` the materials go
+ * back to opaque (and depth-sorted normally) once the model is fully shown.
+ */
+export function fadeModel(group: Group, value: number) {
+  let cache = modelFades.get(group);
+  if (!cache) {
+    cache = { items: [] };
+    const seen = new Set<Material>();
+    group.traverse((o) => {
+      const mesh = o as Mesh;
+      if (!mesh.material) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      mats.forEach((m) => {
+        if (seen.has(m)) return;
+        seen.add(m);
+        cache!.items.push({ m, base: m.opacity, transparent: m.transparent });
+      });
+    });
+    modelFades.set(group, cache);
+  }
+  const full = value >= 0.995;
+  for (const it of cache.items) {
+    it.m.transparent = full ? it.transparent : true;
+    it.m.opacity = full ? it.base : it.base * value;
+  }
+  group.visible = value > 0.003;
+}
+
+const box = new Box3();
+const bsize = new Vector3();
+
+/**
+ * Hides tiny clutter meshes (cables, keycaps, desk toys) — they cost a draw
+ * call each and are unreadable at phone size. Anything with a bounding-box
+ * diagonal under `ratio` of the whole model's is dropped; textures also stop
+ * paying for anisotropic filtering.
+ */
+export function simplifyModel(root: Object3D, ratio = 0.045, keep: string[] = []) {
+  root.updateWorldMatrix(true, true);
+  const diag = box.setFromObject(root).getSize(bsize).length() || 1;
+  const kept = new Set(keep);
+  root.traverse((o) => {
+    const mesh = o as Mesh;
+    if (!mesh.isMesh) return;
+    if (!kept.has(o.name) && box.setFromObject(mesh).getSize(bsize).length() < diag * ratio) {
+      mesh.visible = false;
+    }
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    mats.forEach((m) => {
+      for (const v of Object.values(m ?? {})) {
+        if (v instanceof Texture) v.anisotropy = 1;
+      }
+    });
+  });
 }
 
 /** Releases GPU memory for an object tree (geometries, materials, textures). */

@@ -4,7 +4,7 @@ import { Suspense, useEffect, useLayoutEffect, useMemo, type ReactNode } from "r
 import { useGLTF } from "@react-three/drei";
 import { clone as cloneWithSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { PortfolioAsset } from "@/types/portfolio";
-import { disposeObject } from "@/lib/three-utils";
+import { disposeObject, simplifyModel } from "@/lib/three-utils";
 import {
   ModelErrorBoundary,
   ModelErrorFallback,
@@ -25,6 +25,10 @@ export type ModelRendererProps = {
   /** Rendered inside the model's transform (screens, labels…). */
   children?: ReactNode;
   fallbackSize?: number;
+  /** phones / low tier: hide tiny clutter meshes, drop anisotropic filtering */
+  simplify?: boolean;
+  /** drop the parsed GLB from the loader cache when this model unmounts */
+  evict?: boolean;
 };
 
 function Model({
@@ -35,6 +39,8 @@ function Model({
   hide,
   onReady,
   children,
+  simplify,
+  evict,
 }: ModelRendererProps) {
   // GLB / GLTF — meshopt is on, Draco off (assets are meshopt-compressed)
   const gltf = useGLTF(asset.path, false, true);
@@ -46,7 +52,8 @@ function Model({
     scene.traverse((o) => {
       if (hidden.has(o.name)) o.visible = false;
     });
-  }, [scene, hide]);
+    if (simplify) simplifyModel(scene);
+  }, [scene, hide, simplify]);
 
   useEffect(() => {
     onReady?.();
@@ -57,7 +64,9 @@ function Model({
     return () => {
       // GPU buffers re-upload automatically if the cached scene is reused
       disposeObject(scene);
+      if (evict) useGLTF.clear(asset.path);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene]);
 
   return (

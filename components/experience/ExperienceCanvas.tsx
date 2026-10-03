@@ -8,7 +8,7 @@ import ExperienceScene from "./ExperienceScene";
 import LoadProgressBridge from "./LoadProgressBridge";
 import { HtmlPortalContext } from "@/components/three/SceneHtml";
 import { getExperience, setExperience, useExperience } from "@/lib/experience";
-import { degradePerf, perfConfig } from "@/lib/performance";
+import { degradePerf, resolvePerf, usePerf } from "@/lib/performance";
 import { assetList } from "@/data/assets";
 
 /** If the canvas cannot be created at all, fall back to the lightweight page. */
@@ -38,9 +38,12 @@ class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolea
 export default function ExperienceCanvas() {
   const perf = useExperience((s) => s.perf);
   const reduced = useExperience((s) => s.reducedMotion);
-  const cfg = perfConfig[perf];
+  const cfg = usePerf();
   // fixed at mount: these cannot change without recreating the GL context
-  const [initial] = useState(() => perfConfig[getExperience().perf]);
+  const [initial] = useState(() => {
+    const s = getExperience();
+    return resolvePerf(s.perf, s.mobile, s.reducedMotion);
+  });
   const htmlRoot = useRef<HTMLDivElement>(null);
 
   // Shader compilation + model upload make the first seconds jumpy on ANY

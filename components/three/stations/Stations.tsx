@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import SceneHtml from "../SceneHtml";
 import { useFrame } from "@react-three/fiber";
-import type { Group } from "three";
+import { MathUtils, type Group } from "three";
 import ModelRenderer from "../ModelRenderer";
 import NetworkLines from "../NetworkLines";
 import FloatingUI from "../FloatingUI";
@@ -20,27 +20,75 @@ import {
   stations,
   type V3,
 } from "@/lib/world";
-import { getExperience, useExperience } from "@/lib/experience";
+import { frame, getExperience, useExperience } from "@/lib/experience";
 import { useLanguage } from "@/hooks/useLanguage";
 import { screenConfig } from "@/lib/screens";
-import { perfConfig } from "@/lib/performance";
-import { poseWeight as pw } from "@/lib/three-utils";
-import { poseWeight, setGroupOpacity } from "@/lib/three-utils";
+import { usePerf } from "@/lib/performance";
+import {
+  fadeModel,
+  poseWeight,
+  poseWeightAny,
+  resetModelFade,
+  setGroupOpacity,
+} from "@/lib/three-utils";
 import { clamp, smootherstep } from "@/lib/utils";
+
+const pw = poseWeight;
+
+/**
+ * Streamed stations fade / scale in as their chapter takes over and back out
+ * as it leaves — they are mounted a chapter early, invisible, so they never pop.
+ * Fully shown they are plain opaque meshes again.
+ */
+function useStationFade(poses: readonly string[], enabled: boolean) {
+  const ref = useRef<Group>(null);
+  useFrame(() => {
+    const g = ref.current;
+    if (!g || !enabled) return;
+    const k = smootherstep(poseWeightAny(poses as string[]));
+    g.scale.setScalar(getExperience().reducedMotion ? 1 : 0.86 + 0.14 * k);
+    fadeModel(g, k);
+  });
+  // the loaded model replaces the loader stand-in: collect its materials afresh
+  const reset = useCallback(() => resetModelFade(ref.current), []);
+  return [ref, reset] as const;
+}
 
 /* ------------------------------------------------------------------ */
 /*  DESK — hero environment, also hosts the web floating UI + monitor  */
 /* ------------------------------------------------------------------ */
+
+/** Chapters whose main subject is the desk (phones hide it everywhere else). */
+const deskPoses = [
+  "hero",
+  "about",
+  "buildIntro",
+  "web",
+  "featured",
+  "engineering",
+  "journey",
+  "contact",
+];
+
 export function DeskStation({ onReady }: { onReady?: () => void }) {
   const narrow = useExperience((st) => st.narrow);
+  const mobile = useExperience((st) => st.mobile);
+  const cfg = usePerf();
+  const [deskRef, deskReset] = useStationFade(deskPoses, mobile && cfg.streaming);
+  const ready = () => {
+    deskReset();
+    onReady?.();
+  };
   return (
     <group position={stations.desk.position}>
+      <group ref={deskRef}>
       <ModelRenderer
         asset={assets.desk}
         position={deskPlacement.position}
         scale={deskPlacement.scale}
-        onReady={onReady}
+        onReady={ready}
         fallbackSize={4}
+        simplify={cfg.cullClutter}
       >
         <ScreenUI
           config={screenConfig.desk}
@@ -52,7 +100,9 @@ export function DeskStation({ onReady }: { onReady?: () => void }) {
           <DeskScreen />
         </ScreenUI>
       </ModelRenderer>
-      <FloatingUI />
+      </group>
+      {/* detached decorative panes: never on a phone — the UI lives on the glass */}
+      {!mobile && <FloatingUI />}
     </group>
   );
 }
@@ -62,28 +112,47 @@ export function DeskStation({ onReady }: { onReady?: () => void }) {
 /* ------------------------------------------------------------------ */
 export function PhoneStation() {
   const spin = useRef<Group>(null);
+  const cfg = usePerf();
+  const mobile = useExperience((st) => st.mobile);
+  const [fadeRef, fadeReset] = useStationFade(["mobile"], cfg.streaming);
 
   useFrame(({ clock }, dt) => {
     const g = spin.current;
     if (!g) return;
-    const slow = getExperience().reducedMotion ? 0.15 : 1;
+    const reduced = getExperience().reducedMotion;
+    if (mobile) {
+      // phones: no free spin — the scroll turns the device (±0.4 rad) with a faint breath
+      const turn = (frame.activeProgress - 0.5) * (reduced ? 0.3 : 1.6);
+      const breath = reduced ? 0 : Math.sin(clock.elapsedTime * 0.5) * 0.06;
+      g.rotation.y = MathUtils.damp(g.rotation.y, turn + breath - 0.2, 4, Math.min(dt, 0.05));
+      g.position.y = 3;
+      return;
+    }
+    const slow = reduced ? 0.15 : 1;
     g.rotation.y += Math.min(dt, 0.05) * 0.35 * slow;
     g.position.y = 3 + Math.sin(clock.elapsedTime * 0.8) * 0.1 * slow;
   });
 
   return (
     <group position={stations.phone.position}>
-      <group ref={spin} position={[0, 3, 0]}>
-        <ModelRenderer
-          asset={assets.phone}
-          position={[0, -0.44 * 6, 0]}
-          scale={6}
-          fallbackSize={2}
-        />
+      <group ref={fadeRef}>
+        <group ref={spin} position={[0, 3, 0]}>
+          <ModelRenderer
+            asset={assets.phone}
+            position={[0, -0.44 * 6, 0]}
+            scale={6}
+            fallbackSize={2}
+            onReady={fadeReset}
+            evict={cfg.streaming}
+          />
+        </group>
       </group>
-      <group position={[0, 3, 0]}>
-        <MobileLayers />
-      </group>
+      {/* the stacked UI layers are decoration: desktop only */}
+      {!mobile && (
+        <group position={[0, 3, 0]}>
+          <MobileLayers />
+        </group>
+      )}
     </group>
   );
 }
@@ -103,36 +172,53 @@ const flowEdges: [number, number][] = [
   [2, 3],
 ];
 
+/** Phones: a tight little network hugging the single rack (the wide one would leave the frame). */
+const mobileFlowNodes: V3[] = [
+  [-2.0, 6.6, 0.5],
+  [2.0, 6.0, 0.7],
+  [-1.9, 2.8, 0.8],
+  [2.0, 3.1, 0.6],
+];
+
 export function BackendStation() {
   const { dict } = useLanguage();
-  const cfg = perfConfig[useExperience((st) => st.perf)];
+  const cfg = usePerf();
+  const mobile = useExperience((st) => st.mobile);
   const flowLabels = dict.build.flow;
   const labels = useRef<Group>(null);
+  // phones show ONE rack for both backend chapters (the systems one reuses it)
+  const poses = useMemo(() => (mobile ? ["backend", "systems"] : ["backend"]), [mobile]);
+  const [fadeRef, fadeReset] = useStationFade(poses, cfg.streaming);
 
   const flow = useRef<Group>(null);
 
   useFrame(() => {
-    const v = poseWeight("backend");
+    const v = poseWeightAny(poses);
     document.documentElement.style.setProperty("--backend-vis", v.toFixed(2));
     if (labels.current) labels.current.visible = v > 0.02;
     if (flow.current) setGroupOpacity(flow.current, 0.04 + 0.96 * v);
   });
 
-  const nodes = useMemo(() => flowNodes, []);
+  const nodes = mobile ? mobileFlowNodes : flowNodes;
   const edges = useMemo(() => [...flowEdges, [3, 4] as [number, number]], []);
   const withRack = useMemo<V3[]>(() => [...nodes, [0.6, 3.1, 0.5]], [nodes]);
 
   return (
     <group position={stations.backend.position}>
-      <ModelRenderer
-        asset={assets.server}
-        position={[0, 3, 0]}
-        scale={3}
-        fallbackSize={3}
-      />
+      <group ref={fadeRef}>
+        <ModelRenderer
+          asset={assets.server}
+          position={[0, 3, 0]}
+          scale={3}
+          fallbackSize={3}
+          onReady={fadeReset}
+          evict={cfg.streaming}
+        />
+      </group>
       <group ref={flow}>
         <NetworkLines nodes={withRack} edges={edges} color="#4f8cff" nodeSize={0.1} pulses={cfg.pulses} />
       </group>
+      {cfg.labels && (
       <group ref={labels}>
         {flowLabels.slice(0, 4).map((label, i) => (
           <SceneHtml
@@ -158,6 +244,7 @@ export function BackendStation() {
           </span>
         </SceneHtml>
       </group>
+      )}
     </group>
   );
 }
@@ -196,7 +283,7 @@ const systemsEdges: [number, number][] = [
 
 export function SystemsStation() {
   const group = useRef<Group>(null);
-  const cfg = perfConfig[useExperience((st) => st.perf)];
+  const cfg = usePerf();
 
   useFrame(() => {
     // the mesh draws itself in as the systems chapter takes over
@@ -233,10 +320,15 @@ export function SystemsStation() {
 /* ------------------------------------------------------------------ */
 /*  LAPTOP — IDE on the glass                                          */
 /* ------------------------------------------------------------------ */
+const laptopPoses = ["laptop", "work", "projectScreen", "projectScreenFlip", "github"];
+
 export function LaptopStation() {
   const narrow = useExperience((st) => st.narrow);
+  const cfg = usePerf();
+  const [fadeRef, fadeReset] = useStationFade(laptopPoses, cfg.streaming);
   return (
     <group position={stations.laptop.position}>
+      <group ref={fadeRef}>
       <mesh position={[0, 0.25, 0]}>
         <boxGeometry args={[8, 0.5, 5.6]} />
         <meshStandardMaterial color="#0f1013" roughness={0.55} metalness={0.4} />
@@ -247,6 +339,8 @@ export function LaptopStation() {
         position={laptopPlacement.position}
         scale={laptopPlacement.scale}
         fallbackSize={2.4}
+        onReady={fadeReset}
+        evict={cfg.streaming}
       >
         <ScreenUI
           config={screenConfig.laptop}
@@ -260,6 +354,7 @@ export function LaptopStation() {
           <LaptopScreen />
         </ScreenUI>
       </ModelRenderer>
+      </group>
     </group>
   );
 }
@@ -333,9 +428,8 @@ function buildConstellation(maxTechs: number, links: boolean) {
 
 export function Constellation() {
   const { dict } = useLanguage();
-  const perf = useExperience((st) => st.perf);
   const narrow = useExperience((st) => st.narrow);
-  const cfg = perfConfig[perf];
+  const cfg = usePerf();
   const group = useRef<Group>(null);
   const spin = useRef<Group>(null);
   const data = useMemo(
